@@ -1,23 +1,31 @@
 pipeline {
     agent any
 
-    options {
-        timestamps()
-        buildDiscarder(logRotator(numToKeepStr: '10'))
-    }
-
     stages {
-        stage('Build & Test') {
+        // stage('Pull Code') {
+        //     steps {
+        //         git branch: 'main', url: 'https://github.com/<your-username>/demo-app.git'
+        //     }
+        // }
+
+        stage('Build JAR') {
             steps {
                 sh 'chmod +x mvnw'
-                sh './mvnw -B clean verify'
+                sh './mvnw -B clean package'
             }
         }
-    }
 
-    post {
-        always  { junit 'target/surefire-reports/*.xml' }
-        success { archiveArtifacts artifacts: 'target/*.jar', fingerprint: true }
-        failure { echo '❌ Build failed. Check the test report above.' }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t demo-app:latest .'
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh 'docker rm -f demo-app || true'
+                sh 'docker run -d --name demo-app -p 8081:8080 demo-app:latest'
+            }
+        }
     }
 }
